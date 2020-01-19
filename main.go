@@ -149,6 +149,7 @@ func main() {
 	var (
 		username   = flag.String("username", "", "login username for kanji.koohii.com")
 		password   = flag.String("password", "", "login password for kanji.koohii.com")
+		retryCount = flag.Int("retryCount", 3, "scrape retry count")
 		firstFrame = flag.Int("firstFrame", 1, "kanji first frame")
 		lastFrame  = flag.Int("lastFrame", 3030, "kanji last frame")
 	)
@@ -186,14 +187,25 @@ func main() {
 
 	var kanjiList []*KanjiEntry
 	for _, lookup := range lookups {
-		log.Printf("scraping %s...", lookup)
-		kanji, err := scrape(br, lookup)
-		if err != nil {
-			log.Fatal(err)
+		var kanji *KanjiEntry
+		var err error
+
+		for i := 0; i < *retryCount; i++ {
+			log.Printf("scraping %s...", lookup)
+
+			kanji, err = scrape(br, lookup)
+			time.Sleep(2 * time.Second)
+
+			if err == nil {
+				break
+			}
 		}
 
-		kanjiList = append(kanjiList, kanji)
-		time.Sleep(2 * time.Second)
+		if err == nil {
+			kanjiList = append(kanjiList, kanji)
+		} else {
+			log.Fatal(err)
+		}
 	}
 
 	log.Printf("saving to %s...", args[0])
